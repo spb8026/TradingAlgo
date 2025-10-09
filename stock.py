@@ -29,6 +29,9 @@ class Stock:
             return self.price_history.loc[date]
         except KeyError:
             return None
+        
+    def get_value_at_date(self, date, shares):
+        return self.get_price_at_date(date) * shares
     
     
 

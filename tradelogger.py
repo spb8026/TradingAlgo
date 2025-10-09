@@ -14,8 +14,12 @@ def log_trade(action, stock, quantity, date):
     price = stock.get_price_at_date(date)
     trade_entry = tradeLog(action, stock.ticker, quantity, date, price)
     return trade_entry
-    
 
+def print_full_log(trade_log):
+    for entry in trade_log:
+        tradeLog.print_trade_log(entry)
+        
+        
 
 def test():
     test_stock = Stock("AAPL")
@@ -27,9 +31,6 @@ def test():
     log.append(log_trade("SELL", test_stock, 10, "2023-04-05"))
     log.append(log_trade("BUY", test_stock, 20, "2023-05-01"))
     log.append(log_trade("SELL", test_stock, 15, "2023-06-15"))
-    for entry in log:
-        tradeLog.print_trade_log(entry)
-
 
 test()
     
