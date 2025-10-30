@@ -1,3 +1,4 @@
+import pandas as pd
 from stock import Stock
 
 class tradeLog:
@@ -5,19 +6,25 @@ class tradeLog:
         self.action = action
         self.ticker = ticker
         self.quantity = quantity
-        self.date = date
+        self.date = pd.to_datetime(date).normalize()
         self.price = price
+
+    @staticmethod
     def print_trade_log(trade_entry):
-        print(f"{trade_entry.action} {trade_entry.quantity} of {trade_entry.ticker} at {trade_entry.price} on {trade_entry.date}")
+        date_str = trade_entry.date.strftime("%Y-%m-%d")
+        print(f"{trade_entry.action} {trade_entry.quantity} of {trade_entry.ticker} at {trade_entry.price:.2f} on {date_str}")
+
 
 def log_trade(action, stock, quantity, date):
+    date = pd.to_datetime(date).normalize()
     price = stock.get_price_at_date(date)
-    trade_entry = tradeLog(action, stock.ticker, quantity, date, price)
-    return trade_entry
+    return tradeLog(action, stock.ticker, quantity, date, price)
+
 
 def print_full_log(trade_log):
-    for entry in trade_log:
+    for entry in sorted(trade_log, key=lambda x: x.date):
         tradeLog.print_trade_log(entry)
+
         
         
 
