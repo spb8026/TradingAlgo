@@ -1,7 +1,6 @@
 class Holding:
-    def __init__(self, ticker, quantity):
+    def __init__(self, ticker, share_amount):
         self.ticker = ticker
-        self.quantity = quantity
-        self.weight = 0.0  # Weight in the portfolio
+        self.share_amount = share_amount
         self.value = 0.0   # Market value of the holding
         
