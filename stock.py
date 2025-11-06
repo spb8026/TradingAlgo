@@ -2,6 +2,8 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from utils import ensure_tz_naive
+
 class Stock:
     def __init__(self, ticker):
         self.ticker = ticker
@@ -9,19 +11,25 @@ class Stock:
         self.price_history = None
         self.outstanding_shares_history = None
         self.market_cap_history = None
+        self.cash_flow = None
+        
         self.initialize_all()
 
     def initialize_all(self):
         self.initialize_price_history()
         self.initialize_outstanding_shares_history(start=pd.Timestamp.today() - pd.DateOffset(years=5))
         self.initialize_market_cap_history()
+        self.initialize_free_cash_flow_history()
         
     def initialize_price_history(self, period="5y", interval="1d"):
         df = self.yTicker.history(period=period, interval=interval)
-        df.index = pd.to_datetime(df.index).tz_localize(None)
+        df.index = ensure_tz_naive(df.index)
         self.price_history = df["Close"]
 
+
     def get_price_at_date(self, date):
+        date = pd.to_datetime(date).tz_localize(None).normalize()
+        self.price_history = ensure_tz_naive(self.price_history)
         if self.price_history is None:
             self.initialize_price_history()
 
@@ -61,7 +69,8 @@ class Stock:
             series = shares_df
 
         # Clean up
-        self.outstanding_shares_history = series.dropna()
+        self.outstanding_shares_history = ensure_tz_naive(series.dropna())
+
 
 
     def initialize_market_cap_history(self):
@@ -71,8 +80,12 @@ class Stock:
             if price is not None:
                 self.market_cap_history[date] = price * shares
         self.market_cap_history = pd.Series(self.market_cap_history)
+        self.market_cap_history.index = pd.to_datetime(self.market_cap_history.index).tz_localize(None)
+
 
     def get_market_cap_at_date(self, date):
+        date = pd.to_datetime(date).tz_localize(None).normalize()
+        self.market_cap_history = ensure_tz_naive(self.market_cap_history)
         if self.market_cap_history is None:
             self.initialize_market_cap_history()
         date = pd.to_datetime(date).normalize()
@@ -84,6 +97,69 @@ class Stock:
             if pd.isna(nearest):
                 return None
             return self.market_cap_history.loc[nearest]
+        
+        
+    def initialize_free_cash_flow_history(self, period="annual"):
+        cf = self.yTicker.quarterly_cashflow
+        if cf is None or cf.empty:
+            print(f"No cash flow data for {self.ticker}")
+            return None
+        self.cash_flow = cf.T
+        series = pd.Series(self.cash_flow.get("Free Cash Flow")).dropna()
+        self.free_cash_flow_history = ensure_tz_naive(series)
+
+    def get_free_cash_flow_at_date(self, date):
+        if not hasattr(self, 'free_cash_flow_history'):
+            self.initialize_free_cash_flow_history()
+
+        date = pd.to_datetime(date).normalize()
+        try:
+            return self.free_cash_flow_history.loc[date]
+        except KeyError:
+            valid_dates = self.free_cash_flow_history.index
+            nearest = valid_dates[valid_dates <= date].max()
+            if pd.isna(nearest):
+                return None
+            return self.free_cash_flow_history.loc[nearest]
+        
+        
+    def calculate_theta(self, start=None, end=None):
+        """
+        Calculate theta = standard deviation of daily price returns over a given period.
+        
+        Args:
+            start (str or Timestamp, optional): start date (inclusive)
+            end (str or Timestamp, optional): end date (inclusive)
+        Returns:
+            float: standard deviation of daily returns (theta)
+        """
+        if self.price_history is None:
+            self.initialize_price_history()
+
+        # Get subset of prices
+        prices = self.price_history.copy()
+        prices.index = pd.to_datetime(prices.index).tz_localize(None)
+
+        if start:
+            start = pd.to_datetime(start).tz_localize(None)
+            prices = prices[prices.index >= start]
+        if end:
+            end = pd.to_datetime(end).tz_localize(None)
+            prices = prices[prices.index <= end]
+
+        if len(prices) < 2:
+            print("Not enough data to calculate theta.")
+            return None
+
+        # Calculate daily percentage returns
+        returns = prices.pct_change().dropna()
+
+        # Standard deviation of returns (daily)
+        theta = returns.std()
+
+        return theta
+
+
         
     def plot_market_cap_history(self, rolling_window=None):
         """Plot historical market capitalization over time.
@@ -110,8 +186,3 @@ class Stock:
         plt.grid(True, linestyle="--", alpha=0.6)
         plt.tight_layout()
         plt.show()
-
-
-# Example usage
-test = Stock("AAPL")
-test.plot_market_cap_history(rolling_window=30)

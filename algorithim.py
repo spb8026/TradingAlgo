@@ -7,10 +7,10 @@ class Algorithim:
         self.current_holdings = {}  # maps ticker -> {"stock": stock_obj, "shares": int}
         self.trade_log = []
         self.name = "BaseAlgorithm"
-        self.portfolio =  Portfolio(cash=starting_capital)
+        self.portfolio =  Portfolio(cash=starting_capital, name=self.name)
         
 
-    def backTest(self, start_date, end_date, rebalance_frequency=None, reblance_dates=None,):
+    def backTest(self, start_date, end_date, rebalance_frequency=None, rebalance_dates=None,):
         if rebalance_frequency is not None: ## Rebalance at regular intervals
             delta = pd.DateOffset(months=rebalance_frequency)
             current_date = pd.to_datetime(start_date).normalize()
@@ -22,21 +22,22 @@ class Algorithim:
                     print(f"Date: {current_date.date()}, Stock: {stock.ticker}, Target Weight: {weight}")
                 self.portfolio.rebalance_portfolio_with_weights(stocks_and_weights, current_date)
                 current_date += delta
-        elif reblance_dates is not None: ## Rebalance at specific dates
-            for date in reblance_dates:
+        elif rebalance_dates is not None: ## Rebalance at specific dates
+            for date in rebalance_dates:
                 date = pd.to_datetime(date).normalize()
                 stocks_and_weights = self.get_stocks_and_weights(date)
-                print("Rebalancing on:", current_date.date())
+                print("Rebalancing on:", date.date())
                 for stock, weight in stocks_and_weights.items():
-                    print(f"Date: {current_date.date()}, Stock: {stock.ticker}, Target Weight: {weight}")
-                Portfolio.rebalance_portfolio_with_weights(stocks_and_weights, date)
+                    print(f"Date: {date.date()}, Stock: {stock.ticker}, Target Weight: {weight}")
+                self.portfolio.rebalance_portfolio_with_weights(stocks_and_weights, date)
+
         else:
             raise ValueError("Either rebalance_frequency or reblance_dates must be provided.")
         self.portfolio.export_to_csv()
         return self.portfolio.holdings_history, self.portfolio.value_history
         
     
-    def get_stocks_and_weights(date):
+    def get_stocks_and_weights(self, date):
         raise NotImplementedError
     
 
