@@ -3,8 +3,8 @@ import numpy as np
 from algorithim import Algorithim
 
 class MomentumStrategy(Algorithim):
-    def __init__(self, universe, initial_capital=10000):
-        super().__init__(universe=universe, starting_capital=initial_capital)
+    def __init__(self, universe, name, initial_capital=10000):
+        super().__init__(universe=universe, starting_capital=initial_capital, name=name)
         self.name = "MomentumStrategy"
         self.prev_constituents = []
 
@@ -146,11 +146,3 @@ class MomentumStrategy(Algorithim):
         final_weights = {row["stock"]: row["final_weight"] for _, row in df_selected.iterrows()}
         return final_weights
 
-    # ------------------------------------------------------------
-    # Helper: decide if rebalance should occur
-    # ------------------------------------------------------------
-    @staticmethod
-    def should_rebalance(date):
-        """Rebalance effective March and September (after Feb/Aug reference)."""
-        m = pd.Timestamp(date).month
-        return m in [3, 9]

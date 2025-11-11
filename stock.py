@@ -12,14 +12,19 @@ class Stock:
         self.outstanding_shares_history = None
         self.market_cap_history = None
         self.cash_flow = None
-        
+        self.free_cash_flow_history = None      
+        self.free_cash_flow_yield_history = None
         self.initialize_all()
+
 
     def initialize_all(self):
         self.initialize_price_history()
         self.initialize_outstanding_shares_history(start=pd.Timestamp.today() - pd.DateOffset(years=5))
         self.initialize_market_cap_history()
         self.initialize_free_cash_flow_history()
+        self.initialize_free_cash_flow_yield_history()
+
+        
         
     def initialize_price_history(self, period="5y", interval="1d"):
         df = self.yTicker.history(period=period, interval=interval)
@@ -107,6 +112,20 @@ class Stock:
         self.cash_flow = cf.T
         series = pd.Series(self.cash_flow.get("Free Cash Flow")).dropna()
         self.free_cash_flow_history = ensure_tz_naive(series)
+    
+    def initialize_free_cash_flow_yield_history(self):
+        """Compute FCF yield (FCF / Market Cap) for overlapping dates."""
+        if self.free_cash_flow_history is None or self.market_cap_history is None:
+            return
+
+        # Align on nearest previous market cap date
+        yield_series = {}
+        for date, fcf in self.free_cash_flow_history.items():
+            cap = self.get_market_cap_at_date(date)
+            if cap is not None and cap > 0:
+                yield_series[date] = fcf / cap
+
+        self.free_cash_flow_yield_history = ensure_tz_naive(pd.Series(yield_series))
 
     def get_free_cash_flow_at_date(self, date):
         if not hasattr(self, 'free_cash_flow_history'):
@@ -121,6 +140,21 @@ class Stock:
             if pd.isna(nearest):
                 return None
             return self.free_cash_flow_history.loc[nearest]
+        
+    def get_free_cash_flow_yield_at_date(self, date):
+        """Return FCF yield (FCF / Market Cap) at the given date."""
+        if self.free_cash_flow_yield_history is None or self.free_cash_flow_yield_history.empty:
+            self.initialize_free_cash_flow_yield_history()
+
+        date = pd.to_datetime(date).normalize()
+        valid_dates = self.free_cash_flow_yield_history.index
+        try:
+            return self.free_cash_flow_yield_history.loc[date]
+        except KeyError:
+            nearest = valid_dates[valid_dates <= date].max()
+            if pd.isna(nearest):
+                return None
+            return self.free_cash_flow_yield_history.loc[nearest]
         
         
     def calculate_theta(self, start=None, end=None):

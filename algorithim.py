@@ -2,21 +2,24 @@ import pandas as pd
 from tradelogger import log_trade
 from portfolio import Portfolio
 class Algorithim:
-    def __init__(self, universe, starting_capital=10000):
+    def __init__(self, universe, name= 'BaseAlgorithim', starting_capital=10000):
         self.universe = universe  
         self.current_holdings = {}  # maps ticker -> {"stock": stock_obj, "shares": int}
         self.trade_log = []
-        self.name = "BaseAlgorithm"
+        self.name = name
         self.portfolio =  Portfolio(cash=starting_capital, name=self.name)
         
 
-    def backTest(self, start_date, end_date, rebalance_frequency=None, rebalance_dates=None,):
+    def backTest(self, start_date, end_date, args=None,  rebalance_frequency=None, rebalance_dates=None,):
         if rebalance_frequency is not None: ## Rebalance at regular intervals
             delta = pd.DateOffset(months=rebalance_frequency)
             current_date = pd.to_datetime(start_date).normalize()
             end_date = pd.to_datetime(end_date).normalize()
             while current_date <= end_date:
-                stocks_and_weights = self.get_stocks_and_weights(current_date)
+                if (args is None):
+                    stocks_and_weights = self.get_stocks_and_weights(date)
+                else:
+                    stocks_and_weights = self.get_stocks_and_weights(date, args)
                 print("Rebalancing on:", current_date.date())
                 for stock, weight in stocks_and_weights.items():
                     print(f"Date: {current_date.date()}, Stock: {stock.ticker}, Target Weight: {weight}")
@@ -25,7 +28,10 @@ class Algorithim:
         elif rebalance_dates is not None: ## Rebalance at specific dates
             for date in rebalance_dates:
                 date = pd.to_datetime(date).normalize()
-                stocks_and_weights = self.get_stocks_and_weights(date)
+                if (args is None):
+                    stocks_and_weights = self.get_stocks_and_weights(date)
+                else:
+                    stocks_and_weights = self.get_stocks_and_weights(date, args)
                 print("Rebalancing on:", date.date())
                 for stock, weight in stocks_and_weights.items():
                     print(f"Date: {date.date()}, Stock: {stock.ticker}, Target Weight: {weight}")

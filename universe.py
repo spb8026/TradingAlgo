@@ -77,15 +77,15 @@ class S_and_P500:
     file_path = "data/sp500_universe.json"
 
     @staticmethod
-    def initlize_universe():
+    def initlize_universe(initialize):
         """Initialize or load cached S&P 500 universe."""
-        if os.path.exists(S_and_P500.file_path) and os.path.getsize(S_and_P500.file_path) > 0:
-            return readUniverseFromFile(S_and_P500.file_path)
-        else:
+        if (initialize or not (os.path.exists(S_and_P500.file_path) and os.path.getsize(S_and_P500.file_path) > 0)):
             tickers = S_and_P500.get_sp500_tickers()
             universe = [Stock(ticker) for ticker in tickers]
             writeUniverseToFile(universe, S_and_P500.file_path)
             return universe
+        else:
+            return readUniverseFromFile(S_and_P500.file_path)
 
     @staticmethod
     def get_sp500_tickers() -> List[str]:
