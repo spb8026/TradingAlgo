@@ -1,0 +1,12 @@
+{
+  "ticker": "PLD",
+  "cache_timestamp": "2025-11-13T15:00:09.983519",
+  "data_available": [
+    "price_history",
+    "outstanding_shares_history",
+    "market_cap_history",
+    "free_cash_flow_history",
+    "free_cash_flow_yield_history"
+  ],
+  "cache_version": "1.0"
+}

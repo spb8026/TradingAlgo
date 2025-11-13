@@ -3,8 +3,12 @@ import json
 import pandas as pd
 import requests
 import yfinance as yf
-from typing import List
+from typing import List, Optional
 from stock import Stock
+from cache_manager import (
+    get_cached_stock, cache_stock, get_stocks_needing_update,
+    migrate_json_cache_to_pickle, ensure_cache_directories
+)
 
 
 def series_to_dict(series: pd.Series):
@@ -77,15 +81,79 @@ class S_and_P500:
     file_path = "data/sp500_universe.json"
 
     @staticmethod
-    def initlize_universe(initialize):
-        """Initialize or load cached S&P 500 universe."""
-        if (initialize or not (os.path.exists(S_and_P500.file_path) and os.path.getsize(S_and_P500.file_path) > 0)):
-            tickers = S_and_P500.get_sp500_tickers()
-            universe = [Stock(ticker) for ticker in tickers]
-            writeUniverseToFile(universe, S_and_P500.file_path)
-            return universe
+    def initlize_universe(load_from_cache=True):
+        """
+        Initialize or load cached S&P 500 universe.
+        
+        Args:
+            load_from_cache: If True, try to load from cache first and update stale data.
+                            If False, force fresh fetch for all stocks.
+                            For backward compatibility, can also accept boolean where
+                            False means force fresh fetch (same as load_from_cache=False).
+        
+        Returns:
+            List of Stock objects
+        """
+        ensure_cache_directories()
+        
+        # Handle backward compatibility - old code passed False to force fresh fetch
+        force_fresh = not load_from_cache
+        
+        # Get ticker list
+        tickers = S_and_P500.get_sp500_tickers()
+        if not tickers:
+            print("⚠️ No tickers found. Cannot initialize universe.")
+            return []
+        
+        # Check if we should migrate from old JSON cache
+        if load_from_cache and os.path.exists(S_and_P500.file_path) and os.path.getsize(S_and_P500.file_path) > 0:
+            # Check if pickle cache exists
+            from cache_manager import STOCKS_CACHE_DIR
+            pickle_files = list(STOCKS_CACHE_DIR.glob("*.pkl"))
+            if not pickle_files:
+                # No pickle cache, migrate from JSON
+                print("📦 Migrating from JSON cache to pickle format...")
+                migrate_json_cache_to_pickle(S_and_P500.file_path)
+        
+        if force_fresh:
+            # Force fetch all stocks
+            print("🔄 Fetching fresh data for all stocks...")
+            universe = [Stock(ticker, lazy=False) for ticker in tickers]
         else:
-            return readUniverseFromFile(S_and_P500.file_path)
+            # Determine which stocks need updates
+            updates_needed = get_stocks_needing_update(tickers, force=False)
+            up_to_date_count = len(tickers) - len(updates_needed)
+            print(f"📊 Cache status: {up_to_date_count} stocks up-to-date, {len(updates_needed)} need updates")
+            
+            # Load or create stocks
+            universe = []
+            for ticker in tickers:
+                if ticker not in updates_needed:
+                    # Load from cache (already validated)
+                    cached_data = get_cached_stock(ticker)
+                    if cached_data:
+                        stock = object.__new__(Stock)
+                        stock.ticker = ticker
+                        stock.yTicker = yf.Ticker(ticker)
+                        stock.price_history = cached_data.get("price_history")
+                        stock.outstanding_shares_history = cached_data.get("outstanding_shares_history")
+                        stock.market_cap_history = cached_data.get("market_cap_history")
+                        stock.free_cash_flow_history = cached_data.get("free_cash_flow_history")
+                        stock.free_cash_flow_yield_history = cached_data.get("free_cash_flow_yield_history")
+                        stock.cash_flow = cached_data.get("cash_flow")
+                        stock._lazy = True
+                        universe.append(stock)
+                        continue
+                
+                # Create stock (will fetch/update as needed)
+                stock = Stock(ticker, lazy=False)
+                universe.append(stock)
+        
+        # Save to old JSON format for backward compatibility
+        writeUniverseToFile(universe, S_and_P500.file_path)
+        
+        print(f"✅ Universe initialized with {len(universe)} stocks.")
+        return universe
 
     @staticmethod
     def get_sp500_tickers() -> List[str]:

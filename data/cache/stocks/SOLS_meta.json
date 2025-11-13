@@ -1,0 +1,10 @@
+{
+  "ticker": "SOLS",
+  "cache_timestamp": "2025-11-13T15:50:42.981460",
+  "data_available": [
+    "price_history",
+    "outstanding_shares_history",
+    "market_cap_history"
+  ],
+  "cache_version": "1.0"
+}

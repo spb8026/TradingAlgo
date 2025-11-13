@@ -17,9 +17,9 @@ class Algorithim:
             end_date = pd.to_datetime(end_date).normalize()
             while current_date <= end_date:
                 if (args is None):
-                    stocks_and_weights = self.get_stocks_and_weights(date)
+                    stocks_and_weights = self.get_stocks_and_weights(current_date)
                 else:
-                    stocks_and_weights = self.get_stocks_and_weights(date, args)
+                    stocks_and_weights = self.get_stocks_and_weights(current_date, args)
                 print("Rebalancing on:", current_date.date())
                 for stock, weight in stocks_and_weights.items():
                     print(f"Date: {current_date.date()}, Stock: {stock.ticker}, Target Weight: {weight}")
@@ -39,6 +39,7 @@ class Algorithim:
 
         else:
             raise ValueError("Either rebalance_frequency or reblance_dates must be provided.")
+        self.portfolio.generate_daily_value_history(start_date, end_date)
         self.portfolio.export_to_csv()
         return self.portfolio.holdings_history, self.portfolio.value_history
         
